@@ -21,24 +21,21 @@ public:
     }
 
 private:
-    Port p;
-    int c;
+    BufferedPort<Vector> p;
+    int c; 
+    Vector *data;
 
     void run()
     {
-        c++;
 
-        Vector b;
-        p.read(b);
+	if (c<500)
+	    data=p.read(false);
 
-      //  if (b != NULL)
-        {
-            std::cout << "\n[0] Got data " << b.toString() << "\n";
-        
-            Time::delay(1);
-
-            std::cout << "[1] Got data " << b.toString() << "\n";
-        }
+        if (data != NULL)
+	{
+            std::cout << "\n[0] Got data " << data->toString() << "\n";
+	    c++;
+	}
 
     }
 
@@ -50,6 +47,8 @@ private:
             return false;
         else
             return true;
+
+        data=NULL;
     }
 
     void threadRelease()
@@ -76,13 +75,12 @@ private:
     void run()
     {
         b.clear();
-        b.resize(10);
+        b.resize(1);
         c++;
         b = c;
 
-     //   b.addInt(c);
-        p.write(b);
-
+	if (c<1000)
+	    p.write(b);
     }
 
     bool threadInit()
@@ -90,7 +88,7 @@ private:
         std::cout << "Producer::Calling init\n";
         
         c = 0;
-
+ 
         if (!p.open("/producer"))
             return false;
         else

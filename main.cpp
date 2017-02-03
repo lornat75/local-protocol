@@ -21,21 +21,29 @@ public:
     }
 
 private:
-    BufferedPort<Vector> p;
-    int c; 
-    Vector *data;
+    BufferedPort<Vector> input;
+    BufferedPort<Vector> output;
 
+    int c; 
+    Vector *dataIn;
+    bool connected;
+  
     void run()
     {
-
-	if (c<500)
-	    data=p.read(false);
-
-        if (data != NULL)
+	if (!connected)
 	{
-            std::cout << "\n[0] Got data " << data->toString() << "\n";
-	    c++;
+       		while(!Network::isConnected("/consumer/out", "/producer/in"));
+       		while(!Network::isConnected("/producer/out", "/consumer/in"));
+		connected=true;
 	}
+
+        //read blocking
+	dataIn=input.read();
+
+	
+        Vector &dataOut=output.prepare();
+        dataOut=*dataIn; //copy
+        output.write();
 
     }
 
@@ -43,17 +51,23 @@ private:
     {
         std::cout << "Consumer::Calling init\n";
 
-        if (!p.open("/consumer"))
+        if (!input.open("/consumer/in"))
             return false;
-        else
-            return true;
+       
 
-        data=NULL;
+	if (!output.open("/consumer/out"))
+            return false;
+
+        dataIn=NULL;
+        connected=false;
+
+	return true;
     }
 
     void threadRelease()
     {
-        p.close();
+        input.close();
+        output.close();
     }
 
 };
@@ -68,19 +82,49 @@ public:
     }
    
 private:
-    Port p;
+    BufferedPort<Vector> input;
+    BufferedPort<Vector> output;
     int c;
-    Vector b;
+    double accDt;
+    bool connected;
 
     void run()
     {
-        b.clear();
-        b.resize(1);
-        c++;
-        b = c;
 
-	if (c<1000)
-	    p.write(b);
+	if (!connected)
+	{
+       		while(!Network::isConnected("/consumer/out", "/producer/in"));
+       		while(!Network::isConnected("/producer/out", "/consumer/in"));
+		connected=true;
+	}
+
+
+       Vector &dataOut=output.prepare();
+       dataOut.resize(10000);
+       dataOut[0]=c++;
+       dataOut[1]=Time::now();
+
+       output.write();
+
+       Vector *inData=input.read();
+       double now=Time::now();
+
+       // compute timing
+       if(c%100==0)
+	{
+                double average=accDt/(double ) c;
+		std::cout<<"Average round trip time " << 1000*average << "\n";
+		accDt=0.0; 
+		c=0;
+	}
+	else
+	{
+		if (c!=((*inData)[0]+1))
+			std::cout<<"Error: dropped message?\n";
+	}
+
+       accDt+=(now-(*inData)[1]);
+       
     }
 
     bool threadInit()
@@ -89,17 +133,24 @@ private:
         
         c = 0;
  
-        if (!p.open("/producer"))
+        if (!output.open("/producer/out"))
             return false;
-        else
-            return true;
 
-      
+ 	if (!input.open("/producer/in"))
+            return false;
+       
+        c=0;
+	accDt=0.0;
+
+	connected=false;
+
+	return true;      
     }
 
     void threadRelease()
     {
-        p.close();
+        input.close();
+        output.close();
     }
 
 };

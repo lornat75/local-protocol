@@ -24,25 +24,32 @@ private:
     BufferedPort<Vector> input;
     BufferedPort<Vector> output;
 
-    int c; 
+    int c;
     Vector *dataIn;
     bool connected;
-  
+
     void run()
     {
-	if (!connected)
-	{
-       		while(!Network::isConnected("/consumer/out", "/producer/in"));
-       		while(!Network::isConnected("/producer/out", "/consumer/in"));
-		connected=true;
-	}
+        if (!connected)
+        {
+           // while (!Network::isConnected("/consumer/out", "/producer/in"))
+             //   Time::delay(1);
+            //while (!Network::isConnected("/producer/out", "/consumer/in"))
+                Time::delay(10);
+            connected = true;
+        }
 
         //read blocking
-	dataIn=input.read();
+        dataIn = input.read();
 
-	
-        Vector &dataOut=output.prepare();
-        dataOut=*dataIn; //copy
+        while (true)
+        {
+            std::cout << (*dataIn)[0] << "\n";
+            Time::delay(0.1);
+        }
+
+        Vector &dataOut = output.prepare();
+        dataOut = *dataIn; //copy
         output.write();
 
     }
@@ -53,15 +60,15 @@ private:
 
         if (!input.open("/consumer/in"))
             return false;
-       
 
-	if (!output.open("/consumer/out"))
+
+        if (!output.open("/consumer/out"))
             return false;
 
-        dataIn=NULL;
-        connected=false;
+        dataIn = NULL;
+        connected = false;
 
-	return true;
+        return true;
     }
 
     void threadRelease()
@@ -73,14 +80,14 @@ private:
 };
 
 
-class Producer: public RateThread
+class Producer : public RateThread
 {
-public: 
+public:
     Producer(int p = 10) : RateThread(p)
     {
         int c = 0;
     }
-   
+
 private:
     BufferedPort<Vector> input;
     BufferedPort<Vector> output;
@@ -91,60 +98,70 @@ private:
     void run()
     {
 
-	if (!connected)
-	{
-       		while(!Network::isConnected("/consumer/out", "/producer/in"));
-       		while(!Network::isConnected("/producer/out", "/consumer/in"));
-		connected=true;
-	}
+        if (!connected)
+        {
+            //while (!Network::isConnected("/consumer/out", "/producer/in"))
+            //    Time::delay(1);
+            //while (!Network::isConnected("/producer/out", "/consumer/in"))
+            Time::delay(10);
+            connected = true;
+        }
 
 
-       Vector &dataOut=output.prepare();
-       dataOut.resize(10000);
-       dataOut[0]=c++;
-       dataOut[1]=Time::now();
+        Vector &dataOut = output.prepare();
+        dataOut.resize(1000000);
+        dataOut[0] = c++;
+        dataOut[1] = Time::now();
 
-       output.write();
+        output.write();
 
-       Vector *inData=input.read();
-       double now=Time::now();
+        Vector &dataOut1 = output.prepare();
+        dataOut1.resize(1000000);
+        while (true)
+        {
+            dataOut1[0]++;
+            Time::delay(0.3);
+        }
 
-       // compute timing
-       if(c%100==0)
-	{
-                double average=accDt/(double ) c;
-		std::cout<<"Average round trip time " << 1000*average << "\n";
-		accDt=0.0; 
-		c=0;
-	}
-	else
-	{
-		if (c!=((*inData)[0]+1))
-			std::cout<<"Error: dropped message?\n";
-	}
+        Vector *inData = input.read();
+        double now = Time::now();
 
-       accDt+=(now-(*inData)[1]);
-       
+        // compute timing
+        if (c % 100 == 0)
+        {
+            double average = accDt / (double)c;
+            std::cout << "Average round trip time " << 1000 * average << "\n";
+            accDt = 0.0;
+            c = 0;
+        }
+        else
+        {
+            if (c != ((*inData)[0] + 1))
+                std::cout << "Error: dropped message?\n";
+        }
+
+        accDt += (now - (*inData)[1]);
+
     }
 
     bool threadInit()
     {
         std::cout << "Producer::Calling init\n";
-        
+
         c = 0;
- 
+
         if (!output.open("/producer/out"))
             return false;
 
- 	if (!input.open("/producer/in"))
+        if (!input.open("/producer/in"))
             return false;
-       
-        c=0;
-	accDt=0.0;
 
-	connected=false;
+        c = 0;
+        accDt = 0.0;
 
-	return true;      
+        connected = false;
+
+        return true;
     }
 
     void threadRelease()
@@ -165,8 +182,8 @@ int main()
     producer.start();
     consumer.start();
 
-    char c=0;
-    while(c!='q')
+    char c = 0;
+    while (c != 'q')
     {
         printf("Hit q to quit\n");
         scanf("%c", &c);
@@ -175,5 +192,5 @@ int main()
     producer.stop();
     consumer.stop();
 
-    return 0;  
+    return 0;
 }

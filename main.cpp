@@ -42,14 +42,13 @@ private:
         //read blocking
         dataIn = input.read();
 
-        while (true)
-        {
-            std::cout << (*dataIn)[0] << "\n";
-            Time::delay(0.1);
-        }
 
         Vector &dataOut = output.prepare();
-        dataOut = *dataIn; //copy
+        dataOut.resize(2);
+        dataOut[0] = dataIn->operator [](0);
+        dataOut[1] = dataIn->operator [](1);
+
+//        dataOut = *dataIn; //copy
         output.write();
 
     }
@@ -113,15 +112,11 @@ private:
         dataOut[0] = c++;
         dataOut[1] = Time::now();
 
+        //std::cout<<"Producer: sending "<<c<<std::endl;
         output.write();
 
-        Vector &dataOut1 = output.prepare();
-        dataOut1.resize(1000000);
-        while (true)
-        {
-            dataOut1[0]++;
-            Time::delay(0.3);
-        }
+
+
 
         Vector *inData = input.read();
         double now = Time::now();
